@@ -1,0 +1,3 @@
+open cmd in this location
+run
+python duce.py

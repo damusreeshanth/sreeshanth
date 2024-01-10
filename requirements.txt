@@ -1,0 +1,12 @@
+requests
+browser-cookie3
+PySimpleGUI
+bs4
+html5lib
+pyopenssl
+argparse
+cloudscraper
+lz4
+keyring
+pyaes
+pbkdf2
