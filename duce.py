@@ -248,14 +248,16 @@ def real_discount():
             if link.a is not None:
                 link = link.a["href"]
                 break
-        #rakesh
-        if link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
-            if "RD_PARM1" in link:
-                link = parse_qs(link)["RD_PARM1"][0]
-            elif "murl" in link:
-                link = parse_qs(link)["murl"][0]
+        
+        if link is not None and isinstance(link, str):
+            #rakesh
+            if link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            rd_links.append(title + "|:|" + link)
 
-        rd_links.append(title + "|:|" + link)
     print("Real Discount Courses: " + str(len(rd_links)))
     main_window["pReal Discount"].update(0, visible=False)
     main_window["iReal Discount"].update(visible=True)
@@ -1484,10 +1486,16 @@ def remove_duplicates(l):
     seen = set()
     result = []
     for item in l:
-        url = item.split('|:|')[1].lower()  # Get the URL part
-        if url not in seen:
-            seen.add(url)
-            result.append(item)
+        parts = item.split('|:|')
+        if len(parts) >= 2:
+            url = parts[1].lower()  # Get the URL part
+            if url not in seen:
+                seen.add(url)
+                result.append(item)
+        # url = item.split('|:|')[1].lower()  # Get the URL part
+        # if url not in seen:
+        #     seen.add(url)
+        #     result.append(item)
     print("After removing duplicates: ", len(result))
     return result
 
@@ -1680,6 +1688,19 @@ def auto(list_st):
         if not os.path.exists("Courses/"):
             os.makedirs("Courses/")
         txt_file = open(f"Courses/" + time.strftime("%Y-%m-%d--%H-%M"), "w")
+        
+        #rakesh
+        #read txt_file_enrolled and append to list
+        with open("Courses/EnrolledCourses.txt", "r") as f:
+            enrolled = f.read().splitlines()
+        #remove duplicates items in enrolled do not use remove_duplicates function
+        enrolled = list(dict.fromkeys(enrolled))
+        
+        
+        txt_file_enrolled = open(f"Courses/" + "EnrolledCourses.txt", "a")
+
+
+
     for index, combo in enumerate(list_st):
         tl = combo.split("|:|")
         main_window["out"].print(str(index) + " " + tl[0], text_color="yellow", end=" ")
@@ -1688,140 +1709,168 @@ def auto(list_st):
         main_window["out"].print(link, text_color="blue")
         try:
             course_id = get_course_id(link)
-            if course_id:
-                coupon_id = get_course_coupon(link)
-                cat, lang, avg_rating, instructor = affiliate_api(course_id)
-                purchased, amount = course_landing_api(course_id)
-                
-                if (
-                    # instructor in instructor_exclude
-                    # or title_in_exclusion(tl[0], title_exclude)
-                    # or cat not in categories
-                    # or lang not in languages
-                    # or 
-                    avg_rating < min_rating
-                ):
-                    # if instructor in instructor_exclude:
-                    #     main_window["out"].print(
-                    #         f"Instructor excluded: {instructor}",
-                    #         text_color="light blue",
-                    #     )
-                    # elif title_in_exclusion(tl[0], title_exclude):
-                    #     main_window["out"].print(
-                    #         "Title Excluded", text_color="light blue"
-                    #     )
-                    # elif cat not in categories:
-                    #     main_window["out"].print(
-                    #         f"Category excluded: {cat}", text_color="light blue"
-                    #     )
-                    # elif lang not in languages:
-                    #     main_window["out"].print(
-                    #         f"Languages excluded: {lang}", text_color="light blue"
-                    #     )
-                    # elif avg_rating < min_rating:
-                    if avg_rating < min_rating:
-                        main_window["out"].print(
-                            f"Poor rating: {avg_rating}", text_color="light blue"
-                        )
-                    main_window["out"].print()
-                    ex_c += 1
 
-                else:
-
-                    if not purchased:
-
-                        if coupon_id:
-                            slp = ""
-
-                            js = free_checkout(coupon_id, course_id)
-                            try:
-                                if js["status"] == "succeeded":
-                                    main_window["out"].print(
-                                        "Successfully Enrolled To Course :)",
-                                        text_color="green",
-                                    )
-                                    main_window["out"].print()
-                                    se_c += 1
-                                    as_c += amount
-                                    if settings["save_txt"]:
-                                        txt_file.write(combo + "\n")
-                                        txt_file.flush()
-                                        os.fsync(txt_file.fileno())
-                                elif js["status"] == "failed":
-                                    # print(js)
-                                    main_window["out"].print(
-                                        "Coupon Expired :(", text_color="red"
-                                    )
-                                    main_window["out"].print()
-                                    e_c += 1
-
-                            except:
-                                try:
-                                    msg = js["detail"]
-                                    main_window["out"].print(
-                                        f"{msg}", text_color="dark blue"
-                                    )
-                                    main_window["out"].print()
-                                    print(js)
-                                    slp = int(re.search(r"\d+", msg).group(0))
-                                except:
-                                    # print(js)
-                                    main_window["out"].print(
-                                        "Expired Coupon", text_color="red"
-                                    )
-                                    main_window["out"].print()
-                                    e_c += 1
-
-                            if slp != "":
-                                slp += 3
-                                main_window["out"].print(
-                                    ">>> Pausing execution of script for "
-                                    + str(slp)
-                                    + " seconds",
-                                    text_color="red",
-                                )
-                                time.sleep(slp)
-                                main_window["out"].print()
-                            else:
-                                time.sleep(3.5)
-
-                        elif not coupon_id:
-                            if settings["discounted_only"]:
-                                main_window["out"].print(
-                                    "Free course excluded", text_color="light blue"
-                                )
-                                ex_c += 1
-                                continue
-                            js = free_enroll(course_id)
-                            try:
-                                if js["_class"] == "course":
-                                    main_window["out"].print(
-                                        "Successfully Subscribed", text_color="green"
-                                    )
-                                    main_window["out"].print()
-                                    se_c += 1
-                                    as_c += amount
-
-                                    if settings["save_txt"]:
-                                        txt_file.write(combo + "\n")
-                                        txt_file.flush()
-                                        os.fsync(txt_file.fileno())
-
-                            except:
-                                main_window["out"].print(
-                                    "COUPON MIGHT HAVE EXPIRED", text_color="red"
-                                )
-                                main_window["out"].print()
-                                e_c += 1
-
-                    elif purchased:
-                        main_window["out"].print(purchased, text_color="light blue")
+            #rakesh
+            #check course_id in enrolled
+            if course_id in enrolled:
+                main_window["out"].print(".Course Already Enrolled.", text_color="red")
+                ae_c += 1
+                continue
+            else:
+                if course_id:
+                    coupon_id = get_course_coupon(link)
+                    cat, lang, avg_rating, instructor = affiliate_api(course_id)
+                    purchased, amount = course_landing_api(course_id)
+                    
+                    if (
+                        # instructor in instructor_exclude
+                        # or title_in_exclusion(tl[0], title_exclude)
+                        # or cat not in categories
+                        # or lang not in languages
+                        # or 
+                        avg_rating < min_rating
+                    ):
+                        # if instructor in instructor_exclude:
+                        #     main_window["out"].print(
+                        #         f"Instructor excluded: {instructor}",
+                        #         text_color="light blue",
+                        #     )
+                        # elif title_in_exclusion(tl[0], title_exclude):
+                        #     main_window["out"].print(
+                        #         "Title Excluded", text_color="light blue"
+                        #     )
+                        # elif cat not in categories:
+                        #     main_window["out"].print(
+                        #         f"Category excluded: {cat}", text_color="light blue"
+                        #     )
+                        # elif lang not in languages:
+                        #     main_window["out"].print(
+                        #         f"Languages excluded: {lang}", text_color="light blue"
+                        #     )
+                        # elif avg_rating < min_rating:
+                        if avg_rating < min_rating:
+                            main_window["out"].print(
+                                f"Poor rating: {avg_rating}", text_color="light blue"
+                            )
                         main_window["out"].print()
-                        ae_c += 1
+                        ex_c += 1
 
-            elif not course_id:
-                main_window["out"].print(".Course Expired.", text_color="red")
-                e_c += 1
+                    else:
+
+                        if not purchased:
+
+                            if coupon_id:
+                                slp = ""
+
+                                js = free_checkout(coupon_id, course_id)
+                                try:
+                                    if js["status"] == "succeeded":
+                                        main_window["out"].print(
+                                            "Successfully Enrolled To Course :)",
+                                            text_color="green",
+                                        )
+                                        main_window["out"].print()
+                                        se_c += 1
+                                        as_c += amount
+                                        if settings["save_txt"]:
+                                            txt_file.write(combo + "\n")
+                                            txt_file.flush()
+                                            os.fsync(txt_file.fileno())
+
+                                            #rakesh
+                                            txt_file_enrolled.write(str(course_id) + "\n")
+                                            txt_file_enrolled.flush()
+                                            os.fsync(txt_file_enrolled.fileno())
+                                            enrolled.append(course_id)
+
+                                    elif js["status"] == "failed":
+                                        # print(js)
+                                        main_window["out"].print(
+                                            "Coupon Expired :(", text_color="red"
+                                        )
+                                        main_window["out"].print()
+                                        e_c += 1
+
+                                except:
+                                    try:
+                                        msg = js["detail"]
+                                        main_window["out"].print(
+                                            f"{msg}", text_color="dark blue"
+                                        )
+                                        main_window["out"].print()
+                                        print(js)
+                                        slp = int(re.search(r"\d+", msg).group(0))
+                                    except:
+                                        # print(js)
+                                        main_window["out"].print(
+                                            "Expired Coupon", text_color="red"
+                                        )
+                                        main_window["out"].print()
+                                        e_c += 1
+
+                                if slp != "":
+                                    slp += 3
+                                    main_window["out"].print(
+                                        ">>> Pausing execution of script for "
+                                        + str(slp)
+                                        + " seconds",
+                                        text_color="red",
+                                    )
+                                    time.sleep(slp)
+                                    main_window["out"].print()
+                                else:
+                                    time.sleep(3.5)
+
+                            elif not coupon_id:
+                                if settings["discounted_only"]:
+                                    main_window["out"].print(
+                                        "Free course excluded", text_color="light blue"
+                                    )
+                                    ex_c += 1
+                                    continue
+                                js = free_enroll(course_id)
+                                try:
+                                    if js["_class"] == "course":
+                                        main_window["out"].print(
+                                            "Successfully Subscribed", text_color="green"
+                                        )
+                                        main_window["out"].print()
+                                        se_c += 1
+                                        as_c += amount
+
+                                        if settings["save_txt"]:
+                                            txt_file.write(combo + "\n")
+                                            txt_file.flush()
+                                            os.fsync(txt_file.fileno())
+                                            
+                                            #rakesh
+                                            txt_file_enrolled.write(str(course_id) + "\n")
+                                            txt_file_enrolled.flush()
+                                            os.fsync(txt_file_enrolled.fileno())
+                                            enrolled.append(course_id)
+
+                                except:
+                                    main_window["out"].print(
+                                        "COUPON MIGHT HAVE EXPIRED", text_color="red"
+                                    )
+                                    main_window["out"].print()
+                                    e_c += 1
+
+                        elif purchased:
+                            #append course_id to txt_file_enrolled and enrolled list
+                            txt_file_enrolled.write(str(course_id) + "\n")
+                            txt_file_enrolled.flush()
+                            os.fsync(txt_file_enrolled.fileno())
+                            enrolled.append(course_id)
+
+
+                            main_window["out"].print(purchased, text_color="light blue")
+                            main_window["out"].print()
+                            ae_c += 1
+                elif not course_id:
+                    main_window["out"].print(".Course Expired.", text_color="red")
+                    e_c += 1
+            
             main_window["pout"].update(index + 1)
         except:
             e = traceback.format_exc()
