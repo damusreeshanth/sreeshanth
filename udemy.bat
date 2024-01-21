@@ -1,0 +1,1 @@
+start /d "D:\Udemy-Course-Enroller-1.7\GUI" cmd /k python duce.py

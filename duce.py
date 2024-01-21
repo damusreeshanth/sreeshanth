@@ -14,7 +14,7 @@ import cloudscraper
 import PySimpleGUI as sg
 import requests
 from bs4 import BeautifulSoup as bs
-
+from http.client import RemoteDisconnected
 from pack.base64 import *
 
 # DUCE
@@ -30,6 +30,12 @@ sg.set_options(
 #rakesh
 ############## Scraper
 
+
+# head = {
+#     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+#     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+# }
+
 def LocalFile():
     global local_links
     local_links = []
@@ -43,8 +49,6 @@ def LocalFile():
     main_window["pLocalFile"].update(0, visible=False)
     main_window["iLocalFile"].update(visible=True)
     
-    
-    
 def discudemy():
     global du_links
     du_links = []
@@ -53,9 +57,17 @@ def discudemy():
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
     }
-
+    backoff_time = 3  # start with a delay of 3 seconds
     for page in range(1, 4):
-        r = requests.get("https://www.discudemy.com/all/" + str(page), headers=head)
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get("https://www.discudemy.com/all/" + str(page), headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+        #r = requests.get("https://www.discudemy.com/all/" + str(page), headers=head)
         soup = bs(r.content, "html5lib")
         small_all = soup.find_all("a", {"class": "card-header"})
         big_all.extend(small_all)
@@ -67,27 +79,46 @@ def discudemy():
 
         title = item.string
         url = item["href"].split("/")[4]
-        r = requests.get("https://www.discudemy.com/go/" + url, headers=head)
+        #r = requests.get("https://www.discudemy.com/go/" + url, headers=head)
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get("https://www.discudemy.com/go/" + url, headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
         soup = bs(r.content, "html5lib")
-        #du_links.append(title + "|:|" + soup.find("a", id="couponLink").string)
-        #rakesh
-        link = soup.find("a", id="couponLink")
+        
+        udemyLink = soup.find("a", href=re.compile("www.udemy.com"))
+        link = udemyLink["href"]
+        #link = soup.find("a", id="couponLink")
         if link is not None and link != "":
-            du_links.append(title + "|:|" + link.string)
-
+            du_links.append(title + "|:|" + link)
+    print("Discudemy Courses: " + str(len(du_links)))
     main_window["pDiscudemy"].update(0, visible=False)
     main_window["iDiscudemy"].update(visible=True)
-
 
 def udemy_freebies():
     global uf_links
     uf_links = []
     big_all = []
-
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    backoff_time = 3  # start with a delay of 3 seconds
     for page in range(1, 3):
-        r = requests.get(
-            "https://www.udemyfreebies.com/free-udemy-courses/" + str(page)
-        )
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get("https://www.udemyfreebies.com/free-udemy-courses/" + str(page), headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+        # r = requests.get(
+        #     "https://www.udemyfreebies.com/free-udemy-courses/" + str(page), headers=head
+        # )
         soup = bs(r.content, "html5lib")
         small_all = soup.find_all("a", {"class": "theme-img"})
         big_all.extend(small_all)
@@ -97,22 +128,43 @@ def udemy_freebies():
     for index, item in enumerate(big_all):
         main_window["pUdemy Freebies"].update(index + 1)
         title = item.img["alt"]
-        link = requests.get(
-            "https://www.udemyfreebies.com/out/" + item["href"].split("/")[4]
-        ).url
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                link = requests.get("https://www.udemyfreebies.com/out/" + item["href"].split("/")[4], headers=head).url
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+        # link = requests.get(
+        #     "https://www.udemyfreebies.com/out/" + item["href"].split("/")[4]
+        # ).url
         uf_links.append(title + "|:|" + link)
+    print("Udemy Freebies Courses: " + str(len(uf_links)))
     main_window["pUdemy Freebies"].update(0, visible=False)
     main_window["iUdemy Freebies"].update(visible=True)
-
 
 def tutorialbar():
 
     global tb_links
     tb_links = []
     big_all = []
-
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    
     for page in range(1, 4):
-        r = requests.get("https://www.tutorialbar.com/all-courses/page/" + str(page))
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get("https://www.tutorialbar.com/all-courses/page/" + str(page), headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+        #r = requests.get("https://www.tutorialbar.com/all-courses/page/" + str(page), headers=head)
         soup = bs(r.content, "html5lib")
         small_all = soup.find_all(
             "h3", class_="mb15 mt0 font110 mobfont100 fontnormal lineheight20"
@@ -125,23 +177,45 @@ def tutorialbar():
         main_window["pTutorial Bar"].update(index + 1)
         title = item.a.string
         url = item.a["href"]
-        r = requests.get(url)
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            
+            try:
+                r = requests.get(url, headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+        #r = requests.get(url, headers=head)
         soup = bs(r.content, "html5lib")
         link = soup.find("a", class_="btn_offer_block re_track_btn")["href"]
         if "www.udemy.com" in link:
             tb_links.append(title + "|:|" + link)
+    print("Tutorial Bar Courses: " + str(len(tb_links)))
     main_window["pTutorial Bar"].update(0, visible=False)
     main_window["iTutorial Bar"].update(visible=True)
-
 
 def real_discount():
 
     global rd_links
     rd_links = []
     big_all = []
-
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
     for page in range(1, 3):
-        r = requests.get("https://real.discount/stores/Udemy?page=" + str(page))
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get("https://real.discount/stores/Udemy?page=" + str(page), headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+        #r = requests.get("https://real.discount/stores/Udemy?page=" + str(page), headers=head)
         soup = bs(r.content, "html5lib")
         small_all = soup.find_all("div", class_="col-xl-4 col-md-6")
         big_all.extend(small_all)
@@ -152,62 +226,88 @@ def real_discount():
         main_window["pReal Discount"].update(index + 1)
         title = item.a.h3.string
         url = "https://real.discount" + item.a["href"]
-        r = requests.get(url)
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get(url, headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+        #r = requests.get(url, headers=head)
+
         soup = bs(r.content, "html5lib")
         # link = soup.find("div", class_="col-xs-12 col-md-12 col-sm-12 text-center").a[
         #     "href"
         # ]
-        link = soup.find("div", class_="col-xs-12 col-md-12 col-sm-12 card p-4").a[
-            "href"
-        ]
-        if link.startswith("http://click.linksynergy.com"):
-            link = parse_qs(link)["RD_PARM1"][0]
+        #rakesh
+        #we have multiple divs with same class name, i want to find divs with class name "col-xs-12 col-md-12 col-sm-12 card p-4" and then find a tag inside it and then href attribute of a tag
+        links = soup.find_all("div", class_="col-xs-12 col-md-12 col-sm-12 card p-4")
+        for link in links:
+            if link.a is not None:
+                link = link.a["href"]
+                break
+        #rakesh
+        if link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+            if "RD_PARM1" in link:
+                link = parse_qs(link)["RD_PARM1"][0]
+            elif "murl" in link:
+                link = parse_qs(link)["murl"][0]
 
         rd_links.append(title + "|:|" + link)
+    print("Real Discount Courses: " + str(len(rd_links)))
     main_window["pReal Discount"].update(0, visible=False)
     main_window["iReal Discount"].update(visible=True)
 
-
 def coursevania():
-
+    
     global cv_links
     nonce = ""
     cv_links = []
-    r = requests.get("https://coursevania.com/courses/")
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = requests.get("https://coursevania.com/courses/", headers=head)
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            time.sleep(backoff_time)  # wait for 3 second before trying again
+            backoff_time *= 2  # double the delay for the next retry
+                
+    #r = requests.get("https://coursevania.com/courses/", headers=head)
     soup = bs(r.content, "html5lib")
-    # try:
-        
-    # except json.JSONDecodeError:
-    #     print("Invalid JSON string")
-   
-    
-    try:
-        nonce = json.loads(
-            [
-                script.string
-                for script in soup.find_all("script")
-                    if script.string and "load_content" in script.string
-            ][0].strip("_mlv = norsecat;\n")
-        )["load_content"]
-    except json.JSONDecodeError:
-        print("Invalid JSON string")
-
-    # nonce = json.loads(
-    #     [
-    #         script.string
-    #         for script in soup.find_all("script")
-    #         if script.string and "load_content" in script.string
-    #     ][0].strip("_mlv = norsecat;\n")
-    # )["load_content"]
-
-    r = requests.get(
-        "https://coursevania.com/wp-admin/admin-ajax.php?&template=courses/grid&args={%22posts_per_page%22:%2230%22}&action=stm_lms_load_content&nonce="
-        + nonce
-        + "&sort=date_high"
+  
+    nonce = ""
+    for script in soup.find_all("script"):
+        if script.string and "load_content" in script.string:
+            content = script.string.replace("var stm_lms_nonces =", "").strip().rstrip(";")
+            #print(content)  # Debugging line
+            try:
+                jsonObj = json.loads(content)
+                nonce = json.loads(content)["load_content"]
+                break
+            except json.JSONDecodeError:
+                print("Invalid JSON string")
+                break
+    backoff_time = 3  # start with a delay of 3 seconds            
+    for _ in range(5):  # try up to 5 times
+        try:
+            r =  requests.get(
+        "https://coursevania.com/wp-admin/admin-ajax.php?offset=0&template=courses/grid&args={'image_size':'750x422','per_row':'4','posts_per_page':'30','class':'archive_grid'}&action=stm_lms_load_content&nonce="+nonce+"&sort=date_high", headers=head
     ).json()
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            time.sleep(backoff_time)  # wait for 3 second before trying again
+            backoff_time *= 2  # double the delay for the next retry
+
     # r = requests.get(
-    #     "https://coursevania.com/wp-admin/admin-ajax.php?offset="+1+"&template=courses%2Fgrid&args=%7B%22image_d%22%3A%22img-480-380%22%2C%22per_row%22%3A%224%22%2C%22posts_per_page%22%3A%2212%22%2C%22class%22%3A%22archive_grid%22%7D&action=stm_lms_load_content&nonce=14d4b57cb4&sort=date_high"
+    #     "https://coursevania.com/wp-admin/admin-ajax.php?offset=0&template=courses/grid&args={'image_size':'750x422','per_row':'4','posts_per_page':'30','class':'archive_grid'}&action=stm_lms_load_content&nonce="+nonce+"&sort=date_high", headers=head
     # ).json()
+
 
     soup = bs(r["content"], "html5lib")
     small_all = soup.find_all("div", {"class": "stm_lms_courses__single--title"})
@@ -216,28 +316,50 @@ def coursevania():
     for index, item in enumerate(small_all):
         main_window["pCourse Vania"].update(index + 1)
         title = item.h5.string
-        r = requests.get(item.a["href"])
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get(item.a["href"], headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+        #r = requests.get(item.a["href"], headers=head)
         soup = bs(r.content, "html5lib")
         cv_links.append(
             title + "|:|" + soup.find("div", {"class": "stm-lms-buy-buttons"}).a["href"]
         )
+    print("Course Vania Courses: " + str(len(cv_links)))
     main_window["pCourse Vania"].update(0, visible=False)
     main_window["iCourse Vania"].update(visible=True)
 
-
-def idcoupons():
+def idcoupons_Old():
 
     global idc_links
     idc_links = []
     big_all = []
-    for page in range(1, 6):
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    for page in range(1, 3):
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get(
+                    "https://idownloadcoupon.com/product-category/100off/page/" +
+                    str(page), headers=head
+                )
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait for 3 second before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
         # r = requests.get(
-        #     "https://idownloadcoupon.com/product-category/udemy-2/page/" + str(page)
+        #     "https://idownloadcoupon.com/product-category/100off/page/" +
+        #     str(page), headers=head
         # )
-        r = requests.get(
-            "https://idownloadcoupon.com/product-category/100off/page/" +
-            str(page)
-        )
         soup = bs(r.content, "html5lib")
         # small_all = soup.find_all("a", attrs={"class": "button product_type_external"})
         small_all = soup.find_all("a", attrs={
@@ -254,27 +376,898 @@ def idcoupons():
         elif link.startswith("https://click.linksynergy.com"):
             link = parse_qs(link)["murl"][0]
         idc_links.append(title + "|:|" + link)
+    print("IDownloadCoupons Courses: " + str(len(idc_links)))
     main_window["pIDownloadCoupons"].update(0, visible=False)
     main_window["iIDownloadCoupons"].update(visible=True)
 
+def idcoupons():
+    global idc_links
+    idc_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+        for page in range(1, 3):
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(
+                            "https://idownloadcoupon.com/product-category/udemy/page/"
+                            + str(page), headers=head
+                        )
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+
+            # r = requests.get(
+            #     "https://idownloadcoupon.com/product-category/udemy/page/"
+            #     + str(page), headers=head
+            # )
+            soup = bs(r.content, "html5lib")
+            small_all = soup.find_all(
+                "a",
+                attrs={"class": "button product_type_external"},
+            )
+            big_all.extend(small_all)
+        idc_length = len(big_all)
+        main_window["pIDownloadCoupons"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["pIDownloadCoupons"].update(index + 1)
+            idc_progress = index
+            title = item["aria-label"][5:][:-1].strip()
+            backoff_time = 3  # start with a delay of 3 seconds
+            #r = requests.get(item["href"], headers=head, allow_redirects=False)
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(item["href"], headers=head, allow_redirects=False)
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+
+            link = unquote(r.headers["Location"])
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            # elif link.startswith("https://click.linksynergy.com"):
+            #     link = link.split("murl=")[1]
+
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            idc_links.append(title + "|:|" + link)
+        print("IDownloadCoupons Courses: " + str(len(idc_links)))
+        main_window["pIDownloadCoupons"].update(0, visible=False)
+        main_window["iIDownloadCoupons"].update(visible=True)
+    except:
+        idc_error = traceback.format_exc()
+        idc_length = -1
+    idc_done = True
+
+def onlinecoursesooo():
+    global ooo_links
+    ooo_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+        for page in range(1, 3):
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(
+                            "https://www.onlinecourses.ooo/page/"
+                            + str(page), headers=head
+                        )
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+                    
+            # r = requests.get(
+            #     "https://www.onlinecourses.ooo/page/"
+            #     + str(page), headers=head
+            # )
+            soup = bs(r.content, "html5lib")
+            small_all = soup.find_all(
+                "a",
+                attrs={"class": "img-centered-flex rh-flex-center-align rh-flex-justify-center re_track_btn"},
+            )
+            big_all.extend(small_all)
+        ooo_length = len(big_all)
+        main_window["ponlinecoursesooo"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["ponlinecoursesooo"].update(index + 1)
+            ooo_progress = index
+
+
+            url = item["href"]
+            if "onlinecourses.ooo" not in url:
+                continue
+            #r = requests.get(url, headers=head)
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(url, headers=head)
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+            soup = bs(r.content, "html5lib")
+            #find anchor tag containing "GET COUPON CODE" text and get href attribute
+            
+            #find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            title=soup.find("h1", class_="clearbox").text
+
+            udemyRedirectLink = soup.find("a", class_="btn_offer_block re_track_btn")
+            #get href attribute of anchor tag
+            link = unquote(udemyRedirectLink["href"])
+            
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            ooo_links.append(title + "|:|" + link)
+        print("onlinecoursesooo Courses: " + str(len(ooo_links)))
+        main_window["ponlinecoursesooo"].update(0, visible=False)
+        main_window["ionlinecoursesooo"].update(visible=True)
+    except:
+        ooo_error = traceback.format_exc()
+        ooo_length = -1
+    ooo_done = True
+
+def smartybro():
+    global smbro_links
+    smbro_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+        for page in range(1, 3):
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(
+                            "https://smartybro.com/category/udemy-coupon-100-off/page/"
+                            + str(page), headers=head
+                        )
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+            # r = requests.get(
+            #     "https://smartybro.com/category/udemy-coupon-100-off/page/"
+            #     + str(page), headers=head
+            # )
+            soup = bs(r.content, "html5lib")
+
+            #find anchor tag href with in h2 tag contains class "entry-title" and get href attribute
+            anchorDivs = soup.find_all(
+                "h2",
+                attrs={"class": "grid-tit"},
+            )
+
+            small_all = [div.find("a") for div in anchorDivs]
+                   
+            big_all.extend(small_all)
+        smbro_length = len(big_all)
+        main_window["psmartybro"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["psmartybro"].update(index + 1)
+            smbro_progress = index
+
+
+            url = item["href"]
+            if "smartybro.com" not in url:
+                continue
+            backoff_time = 3  # start with a delay of 3 seconds        
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(url, headers=head)
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry      
+
+            #r = requests.get(url, headers=head)
+            soup = bs(r.content, "html5lib")
+            #find anchor tag containing "GET COUPON CODE" text and get href attribute
+            
+            #find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            title=soup.find("span", class_="entry-title").text
+
+            udemyRedirectLink = soup.find("a", class_="fasc-button fasc-size-xlarge fasc-type-flat")
+            #get href attribute of anchor tag
+            link = unquote(udemyRedirectLink["href"])
+            #remove all attributes except coupon code
+            #link = link.split("?couponCode=")[0] + "?couponCode=" + link.split("?couponCode=")[1].split("&")[0]
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            smbro_links.append(title + "|:|" + link)
+        print("smartybro Courses: " + str(len(smbro_links)))
+        main_window["psmartybro"].update(0, visible=False)
+        main_window["ismartybro"].update(visible=True)
+    except:
+        smbro_error = traceback.format_exc()
+        smbro_length = -1
+    smbro_done = True
+
+def bestcouponhunter():
+    global bch_links
+    bch_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+
+        for page in range(1, 3):
+            
+            # r = requests.get(
+            #     "https://bestcouponhunter.com/page/"
+            #     + str(page), headers=head
+            # )
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(
+                            "https://bestcouponhunter.com/page/"
+                            + str(page), headers=head
+                        )
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+
+            soup = bs(r.content, "html5lib")
+
+            #find anchor tag href with in h2 tag contains class "entry-title" and get href attribute
+            small_all = soup.find_all(
+                "a",
+                attrs={"class": "img-centered-flex rh-flex-center-align rh-flex-justify-center"},
+            )
+
+            #small_all = [div.find("a") for div in anchorDivs]
+                   
+            big_all.extend(small_all)
+        bch_length = len(big_all)
+        main_window["pbestcouponhunter"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["pbestcouponhunter"].update(index + 1)
+            bch_progress = index
+
+
+            url = item["href"]
+            if "bestcouponhunter.com" not in url:
+                continue
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(url, headers=head)
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait for 3 second before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+                    
+
+            #r = requests.get(url, headers=head)
+            soup = bs(r.content, "html5lib")
+            #find anchor tag containing "GET COUPON CODE" text and get href attribute
+            
+            #find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            titleDiv = soup.find("div", class_="single_top_main")
+            title = titleDiv.find("h1").text
+
+
+            udemyRedirectLink = soup.find("a", class_="btn_offer_block re_track_btn medium")
+            #get href attribute of anchor tag
+            link = unquote(udemyRedirectLink["href"])
+            #remove all attributes except coupon code
+            #link = link.split("?couponCode=")[0] + "?couponCode=" + link.split("?couponCode=")[1].split("&")[0]
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            bch_links.append(title + "|:|" + link)
+        print("bestcouponhunter Courses: " + str(len(bch_links)))
+        main_window["pbestcouponhunter"].update(0, visible=False)
+        main_window["ibestcouponhunter"].update(visible=True)
+    except:
+        bch_error = traceback.format_exc()
+        bch_length = -1
+    bch_done = True
+
+def cursosdev():
+    global cd_links
+    cd_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+        for page in range(1, 3):
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(
+                            "https://www.cursosdev.com/?page="
+                            + str(page), headers=head
+                        )
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+
+            # r = requests.get(
+            #     "https://www.cursosdev.com/?page="
+            #     + str(page), headers=head
+            # )
+
+            soup = bs(r.content, "html5lib")
+
+            coursesDiv = soup.find(
+                "div",
+                attrs={"class": "w-screen sm:w-full md:full lg:w-full xl:w-full mx-auto grid grid-cols-1 px-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"},
+            )
+            #find anchor tag href with in h2 tag contains class "entry-title" and get href attribute
+            small_all = coursesDiv.find_all(
+                "a",
+                attrs={"class": "c-card block bg-white shadow-md hover:shadow-xl rounded-lg overflow-hidden"},
+            )
+                   
+            big_all.extend(small_all)
+        cd_length = len(big_all)
+        main_window["pcursosdev"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["pcursosdev"].update(index + 1)
+            cd_progress = index
+
+
+            url = item["href"]
+            if "cursosdev.com" not in url:
+                continue
+
+            try:
+                backoff_time = 3  # start with a delay of 3 seconds
+                for _ in range(5):  # try up to 5 times
+                    try:
+                        r = requests.get(url, headers=head)
+                        break  # if the request is successful, break the loop
+                    except Exception as e:
+                        time.sleep(backoff_time)  # wait before trying again
+                        backoff_time *= 2  # double the delay for the next retry
+
+
+                #r = requests.get(url, headers=head)
+                r.raise_for_status()  # This will raise an exception if the status code is not 200
+            except requests.exceptions.RequestException as e:
+                if r.status_code == 508:
+                    print("Resource Limit Is Reached for URL:", url)
+                    continue  # Skip this URL and continue with the next one
+                else:
+                    #raise  # Re-raise the exception if the status code is not 508
+                    print("Some Exception Occered "+r.status_code+ " for URL:", url)
+
+            soup = bs(r.content, "html5lib")
+            # find anchor tag containing "GET COUPON CODE" text and get href attribute
+
+            # find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            title = soup.find("a", class_="text-4xl text-gray-700 font-bold hover:underline").text
+            #title = titleDiv.find("h1").text
+
+            udemyRedirectLink = soup.find("a", class_="border border-purple-800 bg-indigo-900 hover:bg-indigo-500 my-8 mr-2 text-white block rounded-sm font-bold py-4 px-6 ml-2 flex text-center items-center")
+            # get href attribute of anchor tag
+            link = unquote(udemyRedirectLink["href"])
+
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            cd_links.append(title + "|:|" + link)
+
+        print("cursosdev Courses: " + str(len(cd_links)))
+        main_window["pcursosdev"].update(0, visible=False)
+        main_window["icursosdev"].update(visible=True)
+    except:
+        cd_error = traceback.format_exc()
+        cd_length = -1
+    cd_done = True
+
+def freebiesglobal():
+    global fg_links
+    fg_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+        for page in range(1, 3):
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(
+                        "https://freebiesglobal.com/page/"
+                        + str(page), headers=head
+                    )
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+
+            # r = requests.get(
+            #     "https://freebiesglobal.com/page/"
+            #     + str(page), headers=head
+            # )
+            soup = bs(r.content, "html5lib")
+
+            coursesDiv = soup.find(
+                "div",
+                attrs={"class": "vc_row wpb_row vc_row-fluid centered-container"},
+            )
+            #find anchor tag href with in h2 tag contains class "entry-title" and get href attribute
+            small_all = coursesDiv.find_all(
+                "a",
+                attrs={"class": "img-centered-flex rh-flex-center-align rh-flex-justify-center"},
+            )
+                   
+            big_all.extend(small_all)
+        fg_length = len(big_all)
+        main_window["pfreebiesglobal"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["pfreebiesglobal"].update(index + 1)
+            fg_progress = index
+
+
+            url = item["href"]
+            if "freebiesglobal.com" not in url:
+                continue
+
+            try:
+                backoff_time = 3  # start with a delay of 3 seconds
+                for _ in range(5):  # try up to 5 times
+                    try:
+                        r = requests.get(url, headers=head)
+                        break  # if the request is successful, break the loop
+                    except Exception as e:
+                        time.sleep(backoff_time)  # wait before trying again
+                        backoff_time *= 2  # double the delay for the next retry
+
+
+                # r = requests.get(url, headers=head)
+                r.raise_for_status()  # This will raise an exception if the status code is not 200
+            except requests.exceptions.RequestException as e:
+                if r.status_code == 508:
+                    print("Resource Limit Is Reached for URL:", url)
+                    continue  # Skip this URL and continue with the next one
+                else:
+                    #raise  # Re-raise the exception if the status code is not 508
+                    print("Some Exception Occered "+r.status_code+ " for URL:", url)
+
+            soup = bs(r.content, "html5lib")
+            # find anchor tag containing "GET COUPON CODE" text and get href attribute
+
+            # find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            titleDiv = soup.find("div", class_="rh_post_layout_compare_holder mb25")
+            titleSubDiv = titleDiv.find("div", class_="title_single_area")
+            title = titleDiv.find("h1").text
+
+            udemyRedirectLink = soup.find("a", class_="re_track_btn btn_offer_block")
+            # get href attribute of anchor tag
+            link = unquote(udemyRedirectLink["href"])
+
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            if link.startswith("https://www.udemy.com"):
+                fg_links.append(title + "|:|" + link)
+
+        print("freebiesglobal Courses: " + str(len(fg_links)))
+        main_window["pfreebiesglobal"].update(0, visible=False)
+        main_window["ifreebiesglobal"].update(visible=True)
+    except:
+        fg_error = traceback.format_exc()
+        fg_length = -1
+    fg_done = True
+
+def coursefolder():
+    global cf_links
+    cf_links = []
+    big_all = []
+    head = {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+        }
+    try:
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get("https://coursefolder.net/live-free-udemy-coupon.php", headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait before trying again
+                backoff_time *= 2  # double the delay for the next retry
+        # r = requests.get("https://coursefolder.net/live-free-udemy-coupon.php", headers=head)
+
+
+        soup = bs(r.content, "html5lib")
+
+
+        # coursesDiv = soup.find(
+        #     "div",
+        #     attrs={"class": "vc_row wpb_row vc_row-fluid centered-container"},
+        # )
+        #find anchor tag href with in h2 tag contains class "entry-title" and get href attribute
+        small_all = soup.find_all(
+            "a",
+            attrs={"class": "edu-btn btn-secondary btn-small"},
+        )
+                
+        big_all.extend(small_all)
+        cf_length = len(big_all)
+        main_window["pcoursefolder"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["pcoursefolder"].update(index + 1)
+            cf_progress = index
+
+
+            url = item["href"]
+            if "coursefolder.net" not in url:
+                continue
+
+            try:
+                backoff_time = 3  # start with a delay of 3 seconds
+                for _ in range(5):  # try up to 5 times
+                    try:
+                        r = requests.get(url, headers=head)
+                        break  # if the request is successful, break the loop
+                    except Exception as e:
+                        time.sleep(backoff_time)  # wait before trying again
+                        backoff_time *= 2  # double the delay for the next retry
+                # r = requests.get(url, headers=head)
+                r.raise_for_status()  # This will raise an exception if the status code is not 200
+            except requests.exceptions.RequestException as e:
+                if r.status_code == 508:
+                    print("Resource Limit Is Reached for URL:", url)
+                    continue  # Skip this URL and continue with the next one
+                else:
+                    #raise  # Re-raise the exception if the status code is not 508
+                    print("Some Exception Occered "+r.status_code+ " for URL:", url)
+
+            soup = bs(r.content, "html5lib")
+            # find anchor tag containing "GET COUPON CODE" text and get href attribute
+
+            # find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            titleDiv = soup.find("div", class_="page-title")
+            # titleSubDiv = titleDiv.find("div", class_="title_single_area")
+            title = titleDiv.find("h1").text
+
+            udemyRedirectLink = soup.find("a", href=re.compile("www.udemy.com"))
+            if udemyRedirectLink is not None:
+                link = unquote(udemyRedirectLink["href"])
+
+                if link.startswith("https://ad.admitad.com"):
+                    link = parse_qs(link)["ulp"][0]
+                elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                    if "RD_PARM1" in link:
+                        link = parse_qs(link)["RD_PARM1"][0]
+                    elif "murl" in link:
+                        link = parse_qs(link)["murl"][0]
+                # else:
+                #     print(link)
+                if link.startswith("https://www.udemy.com"):
+                    cf_links.append(title + "|:|" + link)
+
+        print("coursefolder Courses: " + str(len(cf_links)))
+        main_window["pcoursefolder"].update(0, visible=False)
+        main_window["icoursefolder"].update(visible=True)
+    except:
+        cf_error = traceback.format_exc()
+        cf_length = -1
+    cf_done = True
+
+def techlinks():
+    global tl_links
+    tl_links = []
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    try:
+
+        urls = [
+            "https://techlinks.in/udemy-free-coupons?offset=0&limit=21",
+            "https://techlinks.in/udemy-free-coupons?offset=21&limit=21",
+            "https://techlinks.in/udemy-free-coupons?offset=42&limit=21",
+            # add more URLs as needed
+        ]
+
+        for url in urls:
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(url, headers=head)
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait before trying again
+                    backoff_time *= 2  # double the delay for the next retry
+
+            # r = requests.get(url, headers=head)
+            soup = bs(r.content, "html5lib")
+
+            coursesDiv = soup.find(
+                "div",
+                attrs={"class": "row text-center justify-content-around"},
+            )
+            #find anchor tag href with in h2 tag contains class "entry-title" and get href attribute
+            small_all = coursesDiv.find_all(
+                "a",
+                attrs={"class": "btn btn-primary"},
+            )
+                   
+            big_all.extend(small_all)
+        tl_length = len(big_all)
+        main_window["ptechlinks"].update(0, max=len(big_all))
+
+        for index, item in enumerate(big_all):
+            main_window["ptechlinks"].update(index + 1)
+            tl_progress = index
+
+
+            url = "https://techlinks.in/"+item["href"]
+            if "techlinks.in" not in url:
+                continue
+
+            try:
+                backoff_time = 3  # start with a delay of 3 seconds
+                for _ in range(5):  # try up to 5 times
+                    try:
+                        r = requests.get(url, headers=head)
+                        break  # if the request is successful, break the loop
+                    except Exception as e:
+                        time.sleep(backoff_time)  # wait before trying again
+                        backoff_time *= 2  # double the delay for the next retry
+
+                # r = requests.get(url, headers=head)
+                r.raise_for_status()  # This will raise an exception if the status code is not 200
+            except requests.exceptions.RequestException as e:
+                if r.status_code == 508:
+                    print("Resource Limit Is Reached for URL:", url)
+                    continue  # Skip this URL and continue with the next one
+                else:
+                    #raise  # Re-raise the exception if the status code is not 508
+                    print("Some Exception Occered "+r.status_code+ " for URL:", url)
+
+            soup = bs(r.content, "html5lib")
+            # find anchor tag containing "GET COUPON CODE" text and get href attribute
+
+            # find h1 tag contains class "clearbox" and get text, h1 tag inside div tag contains class "lineheight20 rh-flex-center-align mobileblockdisplay"
+            titleDiv = soup.find("div", class_="container mt-3")
+            # titleSubDiv = titleDiv.find("div", class_="title_single_area")
+            title = titleDiv.find("h1").text
+
+            udemyRedirectLink = soup.find("a", class_="btn btn-primary btn-lg")
+            # get href attribute of anchor tag
+            link = unquote(udemyRedirectLink["href"])
+
+            if link.startswith("https://ad.admitad.com"):
+                link = parse_qs(link)["ulp"][0]
+            elif link.startswith("http://click.linksynergy.com") or link.startswith("https://click.linksynergy.com"):
+                if "RD_PARM1" in link:
+                    link = parse_qs(link)["RD_PARM1"][0]
+                elif "murl" in link:
+                    link = parse_qs(link)["murl"][0]
+            # else:
+            #     print(link)
+            if link.startswith("https://www.udemy.com"):
+                tl_links.append(title + "|:|" + link)
+
+        print("techlinks Courses: " + str(len(tl_links)))
+        main_window["ptechlinks"].update(0, visible=False)
+        main_window["itechlinks"].update(visible=True)
+    except:
+        tl_error = traceback.format_exc()
+        tl_length = -1
+    tl_done = True
+
+def freewebcart():
+    
+    global fwc_links
+    nonce = ""
+    fwc_links = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = requests.get("https://www.freewebcart.com/course/100-off-udemy-coupons/", headers=head)
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry    
+
+    #r = requests.get("https://www.freewebcart.com/course/100-off-udemy-coupons/", headers=head)
+    soup = bs(r.content, "html5lib")
+    
+    nonce = ""
+    for script in soup.find_all("script"):
+        if script.string and "load_content" in script.string:
+            content = script.string.replace("var stm_lms_nonces =", "").strip().rstrip(";")
+            #print(content)  # Debugging line
+            try:
+                jsonObj = json.loads(content)
+                nonce = json.loads(content)["load_content"]
+                break
+            except json.JSONDecodeError:
+                print("Invalid JSON string")
+                break
+    backoff_time = 3  # start with a delay of 3 seconds            
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = requests.get(
+        "https://www.freewebcart.com/wp-admin/admin-ajax.php?offset=0&template=courses/grid&args={'per_row':'4','posts_per_page':'12','tax_query':[{'taxonomy':'stm_lms_course_taxonomy','field':'term_id','terms':46}],'class':'archive_grid'}&action=stm_lms_load_content&nonce="+nonce+"&sort=date_high"
+    , headers=head).json()
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+
+
+    # r = requests.get(
+    #     "https://www.freewebcart.com/wp-admin/admin-ajax.php?offset=0&template=courses/grid&args={'per_row':'4','posts_per_page':'12','tax_query':[{'taxonomy':'stm_lms_course_taxonomy','field':'term_id','terms':46}],'class':'archive_grid'}&action=stm_lms_load_content&nonce="+nonce+"&sort=date_high"
+    # , headers=head).json()
+
+
+
+    soup = bs(r["content"], "html5lib")
+    small_all = soup.find_all("div", {"class": "stm_lms_courses__single--title"})
+    main_window["pfreewebcart"].update(0, max=len(small_all))
+
+    for index, item in enumerate(small_all):
+        main_window["pfreewebcart"].update(index + 1)
+        title = item.h5.string
+        backoff_time = 3  # start with a delay of 3 seconds
+        for _ in range(5):  # try up to 5 times
+            try:
+                r = requests.get(item.a["href"], headers=head)
+                break  # if the request is successful, break the loop
+            except Exception as e:
+                time.sleep(backoff_time)  # wait before trying again
+                backoff_time *= 2  # double the delay for the next retry
+
+
+        # r = requests.get(item.a["href"], headers=head)
+        soup = bs(r.content, "html5lib")
+        fwc_links.append(
+            title + "|:|" + soup.find("div", {"class": "stm-lms-buy-buttons"}).a["href"]
+        )
+    #write fwc_links length to console
+    print("freewebcart Courses: " + str(len(fwc_links)))
+    main_window["pfreewebcart"].update(0, visible=False)
+    main_window["ifreewebcart"].update(visible=True)
 
 def enext() -> list:
     en_links = []
-    r = requests.get("https://e-next.in/e/udemycoupons.php")
+    big_all = []
+    head = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.84",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    }
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = requests.get("https://jobs.e-next.in/course/udemy", headers=head)
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+    # r = requests.get("https://jobs.e-next.in/course/udemy", headers=head)
     soup = bs(r.content, "html5lib")
     #rakesh
-    # big_all = soup.find("div", {"class": "scroll-box"}).find_all("p", {"class": "p2"})
-    big_all = soup.find("div", {"class": "scroll-box"})
-    if big_all is not None:
-        big_all = big_all.find_all("p", {"class": "p2"})
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            json_response = requests.get("https://jobs.e-next.in/public/assets/data/udemy.json", headers=head).json()
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+    #fetch json from url
+    #json_response = requests.get("https://jobs.e-next.in/public/assets/data/udemy.json", headers=head).json()
+    #push all item in big_all
+    #loop first 50 items
+    for item in json_response[:30]:
+        big_all.append(item['title'] + "|:|"  + "https://jobs.e-next.in/course/udemy/" + item['url'])
+
+
     #make sure big_all is not None
-    if big_all is None:
+    if big_all is not None:
         main_window["pE-next"].update(0, max=len(big_all))
         for i in big_all:
             main_window["pE-next"].update(index + 1)
-            title = i.text[11:].strip().removesuffix("Enroll Now free").strip()
-            link = i.a["href"]
-            en_links.append(title + "|:|" + link)
+
+            #split i with |:| and get title and link
+            link = i.split("|:|")[1]
+            title = i.split("|:|")[0]
+            #rakesh
+            backoff_time = 3  # start with a delay of 3 seconds
+            for _ in range(5):  # try up to 5 times
+                try:
+                    r = requests.get(link, headers=head)
+                    break  # if the request is successful, break the loop
+                except Exception as e:
+                    time.sleep(backoff_time)  # wait before trying again
+                    backoff_time *= 2  # double the delay for the next retry          
+            # r = requests.get(link, headers=head)
+            soup = bs(r.content, "html5lib")
+            #find anchor tag containing "Enroll Now free" text and get href attribute
+            i = soup.find("a", string="Enroll Now free")
+            #rakesh
+            if i is not None and i != "":
+                #append title and href attribute of anchor tag
+                en_links.append(title + "|:|" + i["href"])
+        
+            # title = i.text[11:].strip().removesuffix("Enroll Now free").strip()
+            # link = i.a["href"]
+            # en_links.append(title + "|:|" + link)
+        print("E-next Courses: " + str(len(en_links)))
         main_window["pE-next"].update(0, visible=False)
         main_window["iE-next"].update(visible=True)
 
@@ -297,6 +1290,14 @@ def create_scrape_obj():
         "Course Vania": threading.Thread(target=coursevania, daemon=True),
         "IDownloadCoupons": threading.Thread(target=idcoupons, daemon=True),
         "E-next": threading.Thread(target=enext, daemon=True),
+        "onlinecoursesooo": threading.Thread(target=onlinecoursesooo, daemon=True),
+        "bestcouponhunter": threading.Thread(target=bestcouponhunter, daemon=True),
+        "cursosdev": threading.Thread(target=cursosdev, daemon=True),
+        "freewebcart": threading.Thread(target=freewebcart, daemon=True),
+        "freebiesglobal": threading.Thread(target=freebiesglobal, daemon=True),
+        "techlinks": threading.Thread(target=techlinks, daemon=True),
+        "coursefolder": threading.Thread(target=coursefolder, daemon=True),
+        "smartybro": threading.Thread(target=smartybro, daemon=True),
     }
     return funcs
 
@@ -313,7 +1314,6 @@ def cookiejar(
         csrf_token=csrf_token,
     )
     return cookies
-
 
 def load_settings():
     try:
@@ -339,19 +1339,29 @@ def load_settings():
 
     return settings, instructor_exclude, title_exclude
 
-
 def save_settings():
     with open("duce-gui-settings.json", "w") as f:
         json.dump(settings, f, indent=4)
-
 
 def fetch_cookies():
     cookies = browser_cookie3.load(domain_name="www.udemy.com")
     return requests.utils.dict_from_cookiejar(cookies), cookies
 
-
 def get_course_id(url):
-    r = requests.get(url, allow_redirects=False)
+
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = requests.get(url, headers=head, allow_redirects=False)
+            r.raise_for_status()  # raise an exception if the response contains an HTTP error status code
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            func_name = sys._getframe().f_code.co_name
+            print(f"An error occurred in function {func_name}: {e}. Retrying in {backoff_time} seconds...")
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+
+    # r = requests.get(url, headers=head, allow_redirects=False)
     if r.status_code in (404, 302, 301):
         return False
     if "/course/draft/" in url:
@@ -375,7 +1385,6 @@ def get_course_id(url):
         # f.write(str(soup))
     return courseid
 
-
 def get_course_coupon(url):
     query = urlsplit(url).query
     params = parse_qs(query)
@@ -385,13 +1394,31 @@ def get_course_coupon(url):
     except:
         return ""
 
-
 def affiliate_api(courseid):
-    r = s.get(
-        "https://www.udemy.com/api-2.0/courses/"
-        + courseid
-        + "/?fields[course]=locale,primary_category,avg_rating_recent,visible_instructors",
-    ).json()
+
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = s.get(
+                "https://www.udemy.com/api-2.0/courses/"
+                + courseid
+                + "/?fields[course]=locale,primary_category,avg_rating_recent,visible_instructors",
+            ).json()
+            #r.raise_for_status()  # raise an exception if the response contains an HTTP error status code
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            func_name = sys._getframe().f_code.co_name
+            print(f"An error occurred in function {func_name}: {e}. Retrying in {backoff_time} seconds...")
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+
+    # ... existing code ...
+
+    # r = s.get(
+    #     "https://www.udemy.com/api-2.0/courses/"
+    #     + courseid
+    #     + "/?fields[course]=locale,primary_category,avg_rating_recent,visible_instructors",
+    # ).json()
 
     instructor = (
         r["visible_instructors"][0]["url"].replace("/user/", "").rstrip("/")
@@ -403,13 +1430,34 @@ def affiliate_api(courseid):
         instructor,
     )
 
-
 def course_landing_api(courseid):
-    r = s.get(
-        "https://www.udemy.com/api-2.0/course-landing-components/"
-        + courseid
-        + "/me/?components=purchase"
-    ).json()
+    
+
+    # ... existing code ...
+
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            r = s.get(
+                "https://www.udemy.com/api-2.0/course-landing-components/"
+                + courseid
+                + "/me/?components=purchase"
+            ).json()
+            #r.raise_for_status()  # raise an exception if the response contains an HTTP error status code
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            func_name = sys._getframe().f_code.co_name
+            print(f"An error occurred in function {func_name}: {e}. Retrying in {backoff_time} seconds...")
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+
+    # ... existing code ...
+
+    # r = s.get(
+    #     "https://www.udemy.com/api-2.0/course-landing-components/"
+    #     + courseid
+    #     + "/me/?components=purchase"
+    # ).json()
 
     try:
         purchased = r["purchase"]["data"]["purchase_date"]
@@ -423,13 +1471,25 @@ def course_landing_api(courseid):
     return purchased, Decimal(amount)
 
 
-def remove_duplicates(l):
-    l = l[::-1]
-    for i in l:
-        while l.count(i) > 1:
-            l.remove(i)
-    return l[::-1]
+# def remove_duplicates(l):
+#     l = l[::-1]
+#     for i in l:
+#         while l.count(i) > 1:
+#             l.remove(i)
+#     return l[::-1]
 
+#rakesh
+def remove_duplicates(l):
+    print("Before removing duplicates: ", len(l))
+    seen = set()
+    result = []
+    for item in l:
+        url = item.split('|:|')[1].lower()  # Get the URL part
+        if url not in seen:
+            seen.add(url)
+            result.append(item)
+    print("After removing duplicates: ", len(result))
+    return result
 
 def update_courses():
     while True:
@@ -440,7 +1500,6 @@ def update_courses():
         ]
         main_window["mn"].Update(menu_definition=new_menu)
         time.sleep(10)  # So that Udemy's api doesn't get spammed.
-
 
 def update_available():
     release_version = requests.get(
@@ -453,7 +1512,6 @@ def update_available():
         )
     else:
         return f"Login {version}", f"Discounted-Udemy-Course-Enroller {version}"
-
 
 def manual_login():
     for retry in range(0, 2):
@@ -501,7 +1559,6 @@ def manual_login():
 
     return "Cloudflare is blocking your requests try again after an hour", "", "", ""
 
-
 def check_login(client_id, access_token, csrf_token):
     head = {
         "authorization": "Bearer " + access_token,
@@ -531,7 +1588,6 @@ def check_login(client_id, access_token, csrf_token):
 
     return head, user, currency, s
 
-
 def title_in_exclusion(title, t_x):
     title_words = title.casefold().split()
     for word in title_words:
@@ -553,27 +1609,64 @@ def free_checkout(coupon, courseid):
         + '"}}]},"payment_info":{"payment_vendor":"Free","payment_method":"free-method"}}'
     )
 
-    r = s.post(
-        "https://www.udemy.com/payment/checkout-submit/",
-        data=payload,
-        verify=False,
-    )
+    for _ in range(5):  # try up to 5 times
+        try:
+            
+            r = s.post(
+                "https://www.udemy.com/payment/checkout-submit/",
+                data=payload,
+                verify=False,
+            )
+            #r.raise_for_status()  # raise an exception if the response contains an HTTP error status code
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            func_name = sys._getframe().f_code.co_name
+            print(f"An error occurred in function {func_name}: {e}. Retrying in {backoff_time} seconds...")
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
+
+
+    # r = s.post(
+    #     "https://www.udemy.com/payment/checkout-submit/",
+    #     data=payload,
+    #     verify=False,
+    # )
     return r.json()
 
-
 def free_enroll(courseid):
+    backoff_time = 3  # start with a delay of 3 seconds
+    for _ in range(5):  # try up to 5 times
+        try:
+            s.get(
+                "https://www.udemy.com/course/subscribe/?courseId=" + str(courseid),
+                verify=False,
+            )
+            #s.raise_for_status() 
+            r = s.get(
+                "https://www.udemy.com/api-2.0/users/me/subscribed-courses/"
+                + str(courseid)
+                + "/?fields%5Bcourse%5D=%40default%2Cbuyable_object_type%2Cprimary_subcategory%2Cis_private",
+                verify=False,
+            )
+            #r.raise_for_status()  # raise an exception if the response contains an HTTP error status code
+            break  # if the request is successful, break the loop
+        except Exception as e:
+            func_name = sys._getframe().f_code.co_name
+            print(f"An error occurred in function {func_name}: {e}. Retrying in {backoff_time} seconds...")
+            time.sleep(backoff_time)  # wait before trying again
+            backoff_time *= 2  # double the delay for the next retry
 
-    s.get(
-        "https://www.udemy.com/course/subscribe/?courseId=" + str(courseid),
-        verify=False,
-    )
+    # s.get(
+    #     "https://www.udemy.com/course/subscribe/?courseId=" + str(courseid),
+    #     verify=False,
+    # )
 
-    r = s.get(
-        "https://www.udemy.com/api-2.0/users/me/subscribed-courses/"
-        + str(courseid)
-        + "/?fields%5Bcourse%5D=%40default%2Cbuyable_object_type%2Cprimary_subcategory%2Cis_private",
-        verify=False,
-    )
+    # r = s.get(
+    #     "https://www.udemy.com/api-2.0/users/me/subscribed-courses/"
+    #     + str(courseid)
+    #     + "/?fields%5Bcourse%5D=%40default%2Cbuyable_object_type%2Cprimary_subcategory%2Cis_private",
+    #     verify=False,
+    # )
     return r.json()
 
 
@@ -599,31 +1692,34 @@ def auto(list_st):
                 coupon_id = get_course_coupon(link)
                 cat, lang, avg_rating, instructor = affiliate_api(course_id)
                 purchased, amount = course_landing_api(course_id)
+                
                 if (
-                    instructor in instructor_exclude
-                    or title_in_exclusion(tl[0], title_exclude)
-                    or cat not in categories
-                    or lang not in languages
-                    or avg_rating < min_rating
+                    # instructor in instructor_exclude
+                    # or title_in_exclusion(tl[0], title_exclude)
+                    # or cat not in categories
+                    # or lang not in languages
+                    # or 
+                    avg_rating < min_rating
                 ):
-                    if instructor in instructor_exclude:
-                        main_window["out"].print(
-                            f"Instructor excluded: {instructor}",
-                            text_color="light blue",
-                        )
-                    elif title_in_exclusion(tl[0], title_exclude):
-                        main_window["out"].print(
-                            "Title Excluded", text_color="light blue"
-                        )
-                    elif cat not in categories:
-                        main_window["out"].print(
-                            f"Category excluded: {cat}", text_color="light blue"
-                        )
-                    elif lang not in languages:
-                        main_window["out"].print(
-                            f"Languages excluded: {lang}", text_color="light blue"
-                        )
-                    elif avg_rating < min_rating:
+                    # if instructor in instructor_exclude:
+                    #     main_window["out"].print(
+                    #         f"Instructor excluded: {instructor}",
+                    #         text_color="light blue",
+                    #     )
+                    # elif title_in_exclusion(tl[0], title_exclude):
+                    #     main_window["out"].print(
+                    #         "Title Excluded", text_color="light blue"
+                    #     )
+                    # elif cat not in categories:
+                    #     main_window["out"].print(
+                    #         f"Category excluded: {cat}", text_color="light blue"
+                    #     )
+                    # elif lang not in languages:
+                    #     main_window["out"].print(
+                    #         f"Languages excluded: {lang}", text_color="light blue"
+                    #     )
+                    # elif avg_rating < min_rating:
+                    if avg_rating < min_rating:
                         main_window["out"].print(
                             f"Poor rating: {avg_rating}", text_color="light blue"
                         )
@@ -765,6 +1861,14 @@ def main1():
             "cv_links",
             "idc_links",
             "en_links",
+            "ooo_links",
+            "bch_links",
+            "cd_links",
+            "fwc_links",
+            "fg_links",
+            "tl_links",
+            "cf_links",
+            "smbro_links",
         ]:
             try:
                 links_ls += eval(link_list)
@@ -954,9 +2058,54 @@ if (
                 e = traceback.format_exc()
                 sg.popup_scrolled(e, title=f"Unknown Error {version}")
 
+# checkbox_lo = []
+# for key in settings["sites"]:
+#     checkbox_lo.append([sg.Checkbox(key, key=key, default=settings["sites"][key])])
+
+#rakesh
 checkbox_lo = []
-for key in settings["sites"]:
-    checkbox_lo.append([sg.Checkbox(key, key=key, default=settings["sites"][key])])
+checkbox_k = list(settings["sites"].keys())
+checkbox_v = list(settings["sites"].values())
+for index, _ in enumerate(settings["sites"]):
+    if index % 3 == 0:
+        try:
+            checkbox_lo.append(
+                [
+                    sg.Checkbox(
+                        checkbox_k[index],
+                        default=checkbox_v[index],
+                        key=checkbox_k[index],
+                        size=(16, 1),
+                    ),
+                    sg.Checkbox(
+                        checkbox_k[index + 1],
+                        default=checkbox_v[index + 1],
+                        key=checkbox_k[index + 1],
+                        size=(16, 1),
+                    ),
+                    sg.Checkbox(
+                        checkbox_k[index + 2],
+                        default=checkbox_v[index + 2],
+                        key=checkbox_k[index + 2],
+                        size=(15, 1),
+                    ),
+                ]
+            )
+        except:
+            temp = []
+            for i in range(index, len(settings["sites"])):
+                temp.append(
+                    sg.Checkbox(
+                        checkbox_k[i],
+                        default=checkbox_v[i],
+                        key=checkbox_k[i],
+                        size=(16, 1),
+                    )
+                )
+                index += 1
+
+            checkbox_lo.append(temp)
+
 
 categories_lo = []
 categories_k = list(settings["categories"].keys())
